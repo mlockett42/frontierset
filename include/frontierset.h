@@ -28,3 +28,5 @@ extern int GenerateFrontierSet(LP_FRONTIERSET, char* buffer, int buffersize);
 // '0' the next bit value should be 0
 // '1' the next bit value should be 1
 // 'T' the byte (unsigned char) array terminates here.
+
+extern void CreateBitString(char* sDest, const unsigned char* sSrc, int length);

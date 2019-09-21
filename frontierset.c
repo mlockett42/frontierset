@@ -106,6 +106,15 @@ void AddToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int len
   free(bits);
 }
 
+void CreateBitString(char* sDest, const unsigned char* sSrc, int length)
+{
+  int i;
+  for (i=0; i<length*8; i++) {
+    sDest[i] = (((0x80 >> (i % 8)) & (sSrc[i/8])) >> (7 - i % 8)) + '0';
+  }
+  sDest[i] = '\0';
+}
+
 int CalcFrontierSetMemberSize(struct FrontierSetMember* pthis)
 // Calculate the size required to store the frontier set member strings
 {
