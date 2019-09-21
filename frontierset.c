@@ -42,6 +42,10 @@ LP_FRONTIERSET AllocFrontierSet()
 {
   struct FrontierSet* fs = malloc(sizeof(struct FrontierSet));
   fs->rootnode = InitFrontierNode();
+  fs->rootnode->branches[BRANCH_0] = InitFrontierNode();
+  fs->rootnode->branches[BRANCH_1] = InitFrontierNode();
+  fs->rootnode->branches[BRANCH_TERMINATOR] = InitFrontierNode();
+  return fs;
 }
 
 static void FreeFrontierNodes(struct FrontierNode* fn)
@@ -52,7 +56,6 @@ static void FreeFrontierNodes(struct FrontierNode* fn)
   FreeFrontierNodes(fn->branches[BRANCH_0]);
   FreeFrontierNodes(fn->branches[BRANCH_1]);
   FreeFrontierNodes(fn->branches[BRANCH_TERMINATOR]);
-
 }
 
 void FreeFrontierSet(LP_FRONTIERSET lpfrontierset)
@@ -61,9 +64,34 @@ void FreeFrontierSet(LP_FRONTIERSET lpfrontierset)
   free(lpfrontierset);
 }
 
-static void AddBitStringToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int length)
+static void AddBitStringToFrontierNode(struct FrontierNode* fn,
+    unsigned char* data, int length, int index)
 {
-
+  if (index > length)
+  // If we have gone past the end of the array there is nothing left to do
+  {
+    return;
+  }
+  if (IsFrontierNodeLeaf(fn))
+  {
+    fn->branches[BRANCH_0] = InitFrontierNode();
+    fn->branches[BRANCH_1] = InitFrontierNode();
+    if ((index & 7) == 7)
+    {
+      // We can only have terminators on byte boundaries
+      fn->branches[BRANCH_TERMINATOR] = InitFrontierNode();
+    }
+  }
+  if (index == length - 1)
+  {
+    FreeFrontierNodes(fn->branches[BRANCH_TERMINATOR]);
+    fn->branches[BRANCH_TERMINATOR] = NULL;
+  }
+  if (index < length)
+  {
+    AddBitStringToFrontierNode(fn->branches[data[index]], data, length,
+                               index+1);
+  }
 }
 
 void AddToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int length)
@@ -74,7 +102,7 @@ void AddToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int len
   for (i=0; i<length*8; i++) {
       bits[i] = ((1 << (i % 8)) & (data[i/8])) >> (i % 8);
   }
-  AddBitStringToFrontierSet(lpfrontierset, bits, length*8);
+  AddBitStringToFrontierNode(((struct FrontierSet*)lpfrontierset)->rootnode, bits, length*8, 0);
   free(bits);
 }
 
@@ -119,28 +147,46 @@ void InsertFrontierSetInBuffer(struct FrontierSetMember* pthis, char* buffer,
                             buffersize - iBufferUsed);
 }
 
+struct FrontierSetMember* GenerateFrontierSetMembers(const char* prefix,
+  struct FrontierNode* fn, struct FrontierSetMember* pNext)
+{
+  struct FrontierSetMember* pThis;
+  if (IsFrontierNodeLeaf(fn))
+  {
+    pThis = malloc(sizeof(struct FrontierSetMember));
+    pThis->thiselement = malloc(strlen(prefix) + 1);
+    strcpy(pThis->thiselement, prefix);
+    pThis->pnext = pNext;
+    return pThis;
+  }
+  if (fn->branches[BRANCH_TERMINATOR] != NULL)
+  {
+    pThis = malloc(sizeof(struct FrontierSetMember));
+    pThis->thiselement = malloc(strlen(prefix) + 2);
+    pThis->pnext = pNext;
+    strcpy(pThis->thiselement, prefix);
+    strcat(pThis->thiselement, "T");
+    pNext = pThis;
+  }
+  char* nextprefix;
+  int prefixlen;
+  for (int i = BRANCH_1; i >= BRANCH_0 ; i--)
+  {
+    prefixlen = strlen(prefix);
+    nextprefix = malloc(prefixlen + 2);
+    strcpy(nextprefix, prefix);
+    nextprefix[prefixlen] = i - BRANCH_0 + '0';
+    nextprefix[prefixlen + 1] = '\0';
+    pNext = GenerateFrontierSetMembers(nextprefix, fn->branches[i], pNext);
+  }
+  return pNext;
+}
+
 int GenerateFrontierSet(LP_FRONTIERSET lpfrontierset, char* buffer, int buffersize)
 {
   struct FrontierSet* fs = lpfrontierset;
   struct FrontierSetMember* pfirst = NULL;
-  if (IsFrontierNodeLeaf(fs->rootnode)) {
-    // Return the empty set. Ie everything is on the other side of the frontier
-    // That everything starting in zero, one or terminated (ie zero length string)
-    pfirst = malloc(sizeof(struct FrontierSetMember));
-    pfirst->thiselement = malloc(2);
-    strcpy(pfirst->thiselement, "0");
-    struct FrontierSetMember* pfs1 = malloc(sizeof(struct FrontierSetMember));
-    pfirst->pnext = pfs1;
-
-    pfs1->thiselement = malloc(2);
-    strcpy(pfs1->thiselement, "1");
-    struct FrontierSetMember* pfsTerm = malloc(sizeof(struct FrontierSetMember));
-    pfs1->pnext = pfsTerm;
-
-    pfsTerm->thiselement = malloc(2);
-    strcpy(pfsTerm->thiselement, "T");
-    pfsTerm->pnext = NULL;
-  }
+  pfirst = GenerateFrontierSetMembers("", fs->rootnode, NULL);
 
   int iBufferRequired = CalcFrontierSetMemberSize(pfirst);
 
