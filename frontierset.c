@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "frontierset.h"
 
 #define BRANCH_0 0
@@ -22,10 +23,25 @@ struct FrontierSetMember {
   struct FrontierSetMember* pnext;
 };
 
+struct FrontierNode* InitFrontierNode()
+// Creates an empty frontier node structure
+{
+  struct FrontierNode* ret = malloc(sizeof(struct FrontierNode));
+  ret->branches[BRANCH_0] = NULL;
+  ret->branches[BRANCH_1] = NULL;
+  ret->branches[BRANCH_TERMINATOR] = NULL;
+}
+
+static bool IsFrontierNodeLeaf(struct FrontierNode* fn)
+{
+  return fn->branches[BRANCH_0] == NULL && fn->branches[BRANCH_1] == NULL &&
+          fn->branches[BRANCH_TERMINATOR] == NULL;
+}
+
 LP_FRONTIERSET AllocFrontierSet()
 {
   struct FrontierSet* fs = malloc(sizeof(struct FrontierSet));
-  fs->rootnode = NULL;
+  fs->rootnode = InitFrontierNode();
 }
 
 void FreeFrontierSet(LP_FRONTIERSET lpfrontierset)
@@ -33,9 +49,21 @@ void FreeFrontierSet(LP_FRONTIERSET lpfrontierset)
   free(lpfrontierset);
 }
 
-void Add(LP_FRONTIERSET lpfrontierset, unsigned char* data, int length)
+static void AddBitStringToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int length)
 {
 
+}
+
+void AddToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int length)
+{
+  unsigned char* bits = malloc(length * 8);
+  // From: https://stackoverflow.com/a/41709317
+  int i;
+  for (i=0; i<length*8; i++) {
+      bits[i] = ((1 << (i % 8)) & (data[i/8])) >> (i % 8);
+  }
+  AddBitStringToFrontierSet(lpfrontierset, bits, length*8);
+  free(bits);
 }
 
 int CalcFrontierSetMemberSize(struct FrontierSetMember* pthis)
@@ -83,7 +111,7 @@ int GenerateFrontierSet(LP_FRONTIERSET lpfrontierset, char* buffer, int buffersi
 {
   struct FrontierSet* fs = lpfrontierset;
   struct FrontierSetMember* pfirst = NULL;
-  if (fs->rootnode == NULL) {
+  if (IsFrontierNodeLeaf(fs->rootnode)) {
     // Return the empty set. Ie everything is on the other side of the frontier
     // That everything starting in zero, one or terminated (ie zero length string)
     pfirst = malloc(sizeof(struct FrontierSetMember));

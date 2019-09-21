@@ -6,7 +6,7 @@ extern LP_FRONTIERSET AllocFrontierSet();
 extern void FreeFrontierSet(LP_FRONTIERSET);
 // Destroy the in memory representation of the frontier set
 
-extern void Add(LP_FRONTIERSET, unsigned char* data, int length);
+extern void AddToFrontierSet(LP_FRONTIERSET, unsigned char* data, int length);
 // Add an element to the frontier set. The element in length bytes long and contains data
 
 extern int GenerateFrontierSet(LP_FRONTIERSET, char* buffer, int buffersize);
