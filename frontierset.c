@@ -76,13 +76,13 @@ static void AddBitStringToFrontierNode(struct FrontierNode* fn,
   {
     fn->branches[BRANCH_0] = InitFrontierNode();
     fn->branches[BRANCH_1] = InitFrontierNode();
-    if ((index & 7) == 7)
+    if ((index & 7) == 0)
     {
       // We can only have terminators on byte boundaries
       fn->branches[BRANCH_TERMINATOR] = InitFrontierNode();
     }
   }
-  if (index == length - 1)
+  if (index == length)
   {
     FreeFrontierNodes(fn->branches[BRANCH_TERMINATOR]);
     fn->branches[BRANCH_TERMINATOR] = NULL;
