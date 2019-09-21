@@ -44,8 +44,20 @@ LP_FRONTIERSET AllocFrontierSet()
   fs->rootnode = InitFrontierNode();
 }
 
+static void FreeFrontierNodes(struct FrontierNode* fn)
+// Free the tree of nodes below and including fn
+{
+  if (fn == NULL)
+    return;
+  FreeFrontierNodes(fn->branches[BRANCH_0]);
+  FreeFrontierNodes(fn->branches[BRANCH_1]);
+  FreeFrontierNodes(fn->branches[BRANCH_TERMINATOR]);
+
+}
+
 void FreeFrontierSet(LP_FRONTIERSET lpfrontierset)
 {
+  FreeFrontierNodes(((struct FrontierSet*)lpfrontierset)->rootnode);
   free(lpfrontierset);
 }
 
