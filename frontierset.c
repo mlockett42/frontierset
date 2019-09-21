@@ -100,7 +100,7 @@ void AddToFrontierSet(LP_FRONTIERSET lpfrontierset, unsigned char* data, int len
   // From: https://stackoverflow.com/a/41709317
   int i;
   for (i=0; i<length*8; i++) {
-      bits[i] = ((1 << (i % 8)) & (data[i/8])) >> (i % 8);
+    bits[i] = ((0x80 >> (i % 8)) & (data[i/8])) >> (7 - i % 8);
   }
   AddBitStringToFrontierNode(((struct FrontierSet*)lpfrontierset)->rootnode, bits, length*8, 0);
   free(bits);
